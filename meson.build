@@ -227,3 +227,10 @@ if platform != 'windows'
 endif
 
 subdir('src')
+
+if get_option('build_examples')
+  if platform == 'windows'
+    error('build_examples is only supported for DXVK Native (non-Windows) builds')
+  endif
+  subdir('examples')
+endif
