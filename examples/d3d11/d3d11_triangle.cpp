@@ -19,7 +19,7 @@ namespace {
   };
 }
 
-int main() {
+int main(int argc, char** argv) {
   Window window = createWindow("DXVK Native - D3D11 triangle", 1280, 720);
 
   if (!window.hwnd) {

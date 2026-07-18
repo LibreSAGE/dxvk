@@ -20,7 +20,7 @@ namespace {
   constexpr DWORD VertexFvf = D3DFVF_XYZRHW | D3DFVF_DIFFUSE;
 }
 
-int main() {
+int main(int argc, char** argv) {
   Window window = createWindow("DXVK Native - D3D9 triangle", 1280, 720);
 
   if (!window.hwnd) {

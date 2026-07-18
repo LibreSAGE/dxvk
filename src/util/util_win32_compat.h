@@ -1,6 +1,8 @@
 #pragma once
 
-#if defined(__unix__)
+// Apple's clang does not define __unix__, so match on __APPLE__ as well;
+// otherwise the LoadLibrary/GetProcAddress shims are missing on macOS.
+#if defined(__unix__) || defined(__APPLE__)
 
 #include <windows.h>
 #include <dlfcn.h>

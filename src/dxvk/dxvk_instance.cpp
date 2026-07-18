@@ -250,6 +250,13 @@ namespace dxvk {
 
       VkInstanceCreateInfo info = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
       info.pApplicationInfo         = &appInfo;
+
+      // Portability drivers such as MoltenVK are only enumerated if the
+      // instance opts in, otherwise vkEnumeratePhysicalDevices returns
+      // VK_ERROR_INCOMPATIBLE_DRIVER.
+      if (m_extensionInfo.khrPortabilityEnumeration.specVersion)
+        info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+
       info.enabledLayerCount        = layerNames.size();
       info.ppEnabledLayerNames      = layerNames.data();
       info.enabledExtensionCount    = extensionNames.size();
@@ -373,6 +380,11 @@ namespace dxvk {
       &extensions.extDebugUtils,
       &extensions.extSurfaceMaintenance1,
       &extensions.khrGetSurfaceCapabilities2,
+      // Required on MoltenVK: without this, portability drivers are hidden
+      // and vkEnumeratePhysicalDevices reports no devices at all. The loader
+      // advertises this on other platforms too; enabling it only widens
+      // enumeration to portability drivers, so it is harmless where none exist.
+      &extensions.khrPortabilityEnumeration,
       &extensions.khrSurface,
       &extensions.khrSurfaceMaintenance1,
     }};

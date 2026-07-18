@@ -814,4 +814,12 @@ namespace dxvk::bit {
     return fnv1a_hash(reinterpret_cast<const unsigned char*>(data), size);
   }
 
+#if defined(__APPLE__)
+  // On macOS arm64 size_t/uintptr_t is 'unsigned long', which is distinct from
+  // both uint32_t ('unsigned int') and uint64_t ('unsigned long long'), so
+  // calls with such arguments are ambiguous without these overloads.
+  inline uint32_t tzcnt(uintptr_t n) { return tzcnt(static_cast<uint64_t>(n)); }
+  inline uint32_t lzcnt(uintptr_t n) { return lzcnt(static_cast<uint64_t>(n)); }
+#endif
+
 }

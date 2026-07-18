@@ -24,7 +24,7 @@ extern "C" HRESULT __stdcall D3D10CoreCreateDevice(
         D3D_FEATURE_LEVEL FeatureLevel,
         ID3D10Device**    ppDevice);
 
-int main() {
+int main(int argc, char** argv) {
   Window window = createWindow("DXVK Native - D3D10", 1280, 720);
 
   if (!window.hwnd) {

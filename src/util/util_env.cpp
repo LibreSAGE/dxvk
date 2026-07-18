@@ -10,6 +10,10 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 #include <limits.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <unistd.h>
+#include <limits.h>
 #endif
 
 #include "util_env.h"
@@ -113,6 +117,15 @@ namespace dxvk::env {
     }
 
     return std::string(exePath);
+#elif defined(__APPLE__)
+    // macOS has no /proc/self/exe, use the dyld API instead.
+    char exePath[PATH_MAX] = {};
+    uint32_t size = sizeof(exePath);
+
+    if (_NSGetExecutablePath(exePath, &size) != 0)
+      return "";
+
+    return std::string(exePath);
 #endif
   }
   
@@ -136,7 +149,12 @@ namespace dxvk::env {
 #else
     std::array<char, 16> posixName = {};
     dxvk::str::strlcpy(posixName.data(), name.c_str(), 16);
+#ifdef __APPLE__
+    // macOS can only name the calling thread.
+    ::pthread_setname_np(posixName.data());
+#else
     ::pthread_setname_np(pthread_self(), posixName.data());
+#endif
 #endif
   }
 

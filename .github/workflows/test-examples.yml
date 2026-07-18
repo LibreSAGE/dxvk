@@ -117,7 +117,7 @@ jobs:
           mingw-w64-x86_64-pkgconf
           mingw-w64-x86_64-glslang
           mingw-w64-x86_64-SDL2
-          mingw-w64-x86_64-SDL3
+          mingw-w64-x86_64-sdl3
           mingw-w64-x86_64-glfw
           mingw-w64-x86_64-vulkan-loader
 

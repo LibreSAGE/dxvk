@@ -11,7 +11,7 @@
 
 using namespace dxvk::example;
 
-int main() {
+int main(int argc, char** argv) {
   Window window = createWindow("DXVK Native - D3D11", 1280, 720);
 
   if (!window.hwnd) {
