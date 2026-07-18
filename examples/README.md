@@ -1,7 +1,8 @@
-# DXVK Native examples
+# DXVK examples
 
 Minimal example programs that drive each Direct3D version supported by DXVK
-Native through a windowing toolkit. There are two examples per API:
+through a windowing toolkit. They build on both DXVK Native (Linux, macOS) and
+Windows. There are two examples per API:
 
 * **clear** — creates a window, device and swap chain and clears the back
   buffer to an animated colour every frame.
@@ -29,17 +30,39 @@ The shared windowing glue lives in
 
 ## How windowing works
 
-DXVK Native does not create windows. The application creates a window with the
-toolkit, passes the toolkit's window pointer to the D3D APIs reinterpreted as an
-`HWND`, and tells DXVK which WSI backend to use at runtime through the
-`DXVK_WSI_DRIVER` environment variable (`SDL2`, `SDL3` or `GLFW`). The window
-helper sets this variable for you to match the backend it was compiled with.
+DXVK does not create windows — the application does, and hands the resulting
+`HWND` to D3D. How that handle is obtained differs per platform, which is the
+only part of the examples that is not portable:
+
+* **DXVK Native** — the WSI backends define an `HWND` to *be* the toolkit's
+  window pointer, so the helper just reinterprets it. The backend is chosen at
+  runtime via the `DXVK_WSI_DRIVER` environment variable (`SDL2`, `SDL3` or
+  `GLFW`), which the helper sets to match the toolkit it was compiled against.
+* **Windows** — `HWND` is a real OS handle, so the helper asks the toolkit for
+  the native handle of the window it created (`SDL_GetWindowWMInfo`,
+  `SDL_PROP_WINDOW_WIN32_HWND_POINTER`, `glfwGetWin32Window`). DXVK only has the
+  Win32 WSI there, so `DXVK_WSI_DRIVER` is deliberately left unset.
+
+All of this is confined to [common/example_window.h](common/example_window.h);
+the example programs themselves are identical across platforms.
+
+## Running
+
+By default an example runs until you close its window. Set
+`DXVK_EXAMPLE_FRAMES=<n>` to render `n` frames and exit with code 0 instead —
+this is how CI runs them non-interactively:
+
+```sh
+DXVK_EXAMPLE_FRAMES=10 ./build/examples/example_d3d9_triangle_sdl2
+```
+
+On Windows the DXVK DLLs must sit next to the executable, otherwise the loader
+picks Microsoft's `d3d9.dll`/`dxgi.dll` from `System32` instead.
 
 ## Building
 
-The examples are not built by default. Enable them with `-Dbuild_examples=true`
-on a DXVK Native (non-Windows) build. At least one of SDL2, SDL3 or GLFW must be
-available:
+The examples are not built by default. Enable them with `-Dbuild_examples=true`.
+At least one of SDL2, SDL3 or GLFW must be available:
 
 ```sh
 meson setup build -Dbuild_examples=true

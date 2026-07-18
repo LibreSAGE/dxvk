@@ -1,0 +1,140 @@
+name: Test Examples
+
+on: [push, pull_request, workflow_dispatch]
+
+# The examples render a fixed number of frames and exit when DXVK_EXAMPLE_FRAMES
+# is set, so CI gets a real pass/fail signal instead of just "it launched".
+env:
+  DXVK_EXAMPLE_FRAMES: 10
+  DXVK_LOG_LEVEL: info
+  # Log to stderr only; otherwise DXVK litters example_*.log files next to the
+  # executables, which the runner script would then try to execute.
+  DXVK_LOG_PATH: none
+
+jobs:
+  linux:
+    name: Linux (SDL2 / SDL3 / GLFW)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup problem matcher
+      uses: Joshua-Ashton/gcc-problem-matcher@master
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          meson ninja-build pkg-config glslang-tools \
+          libsdl2-dev libglfw3-dev \
+          libvulkan1 mesa-vulkan-drivers vulkan-tools xvfb
+        # SDL3 is not packaged on every Ubuntu release yet; it is optional.
+        sudo apt-get install -y libsdl3-dev || echo "libsdl3-dev unavailable, skipping SDL3 backend"
+
+    - name: Build
+      run: |
+        meson setup build -Dbuild_examples=true
+        ninja -C build
+
+    - name: Run examples (lavapipe under Xvfb)
+      env:
+        LIBGL_ALWAYS_SOFTWARE: 1
+      run: |
+        # No GPU on the runner. DXVK only skips CPU devices when a real GPU is
+        # also present, so lavapipe is accepted when it is the only device.
+        # The ICD filename is distro-dependent (lvp_icd.json vs lvp_icd.<arch>.json).
+        icd="$(ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -1)"
+        if [ -z "$icd" ]; then
+          echo "error: no lavapipe ICD found in /usr/share/vulkan/icd.d"
+          ls -la /usr/share/vulkan/icd.d || true
+          exit 1
+        fi
+        echo "Using Vulkan ICD: $icd"
+        export VK_ICD_FILENAMES="$icd" VK_DRIVER_FILES="$icd"
+        xvfb-run -a -s "-screen 0 1280x720x24" ./.github/workflows/run-examples.sh build/examples
+
+  macos:
+    name: macOS (MoltenVK)
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Install dependencies
+      run: |
+        brew update
+        brew install meson ninja pkg-config glslang sdl2 sdl3 glfw molten-vk vulkan-loader
+
+    - name: Build
+      run: |
+        meson setup build -Dbuild_examples=true
+        ninja -C build
+
+    # MoltenVK does not implement the full Vulkan 1.3 feature set DXVK wants, so
+    # device creation may well fail here. The build above is the hard signal;
+    # this step is informational until MoltenVK catches up.
+    - name: Run examples (MoltenVK)
+      continue-on-error: true
+      run: |
+        export VK_ICD_FILENAMES="$(brew --prefix molten-vk)/share/vulkan/icd.d/MoltenVK_icd.json"
+        export DYLD_LIBRARY_PATH="$(brew --prefix vulkan-loader)/lib:$(brew --prefix molten-vk)/lib:${DYLD_LIBRARY_PATH}"
+        ./.github/workflows/run-examples.sh build/examples
+
+  windows:
+    name: Windows (MSYS2 / mingw64)
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          git
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-meson
+          mingw-w64-x86_64-ninja
+          mingw-w64-x86_64-pkgconf
+          mingw-w64-x86_64-glslang
+          mingw-w64-x86_64-SDL2
+          mingw-w64-x86_64-SDL3
+          mingw-w64-x86_64-glfw
+          mingw-w64-x86_64-vulkan-loader
+
+    - name: Build
+      run: |
+        meson setup build -Dbuild_examples=true
+        ninja -C build
+
+    # DXVK's DLLs share their names with the system ones (d3d9.dll, dxgi.dll,
+    # ...). The application directory is searched before System32, so the DLLs
+    # must sit next to the executables or the examples would silently run
+    # against Microsoft's D3D instead of DXVK.
+    - name: Stage DXVK DLLs next to the examples
+      run: find build/src -name '*.dll' -exec cp -v {} build/examples/ \;
+
+    # Windows runners have no GPU and no software Vulkan ICD by default, so
+    # device creation is expected to fail until an ICD is available.
+    - name: Run examples
+      continue-on-error: true
+      run: ./.github/workflows/run-examples.sh build/examples

@@ -1,16 +1,35 @@
-# Minimal DXVK Native examples. Each D3D API gets one example, built once for
-# every available windowing backend (SDL2, SDL3, GLFW). Windows-only and only
+# Minimal DXVK examples. Each D3D API gets a 'clear' and a 'triangle' example,
+# built once for every available windowing backend (SDL2, SDL3, GLFW). Only
 # built when -Dbuild_examples=true.
+#
+# On DXVK Native the toolkit dependencies double as the WSI backends and are
+# already resolved by the top-level meson.build. On Windows DXVK itself always
+# uses the Win32 WSI, so the toolkits are looked up here purely for the
+# examples and are optional -- we build whichever ones are available.
+
+if platform == 'windows'
+  example_sdl3 = dependency('sdl3',  required: false)
+  example_sdl2 = dependency('sdl2',  required: false)
+  example_glfw = dependency('glfw3', required: false)
+else
+  example_sdl3 = lib_sdl3
+  example_sdl2 = lib_sdl2
+  example_glfw = lib_glfw
+endif
 
 example_wsi_backends = []
-if lib_sdl3.found()
-  example_wsi_backends += [{ 'suffix': 'sdl3', 'define': '-DEXAMPLE_WSI_SDL3', 'dep': lib_sdl3 }]
+if example_sdl3.found()
+  example_wsi_backends += [{ 'suffix': 'sdl3', 'define': '-DEXAMPLE_WSI_SDL3', 'dep': example_sdl3 }]
 endif
-if lib_sdl2.found()
-  example_wsi_backends += [{ 'suffix': 'sdl2', 'define': '-DEXAMPLE_WSI_SDL2', 'dep': lib_sdl2 }]
+if example_sdl2.found()
+  example_wsi_backends += [{ 'suffix': 'sdl2', 'define': '-DEXAMPLE_WSI_SDL2', 'dep': example_sdl2 }]
 endif
-if lib_glfw.found()
-  example_wsi_backends += [{ 'suffix': 'glfw', 'define': '-DEXAMPLE_WSI_GLFW', 'dep': lib_glfw }]
+if example_glfw.found()
+  example_wsi_backends += [{ 'suffix': 'glfw', 'define': '-DEXAMPLE_WSI_GLFW', 'dep': example_glfw }]
+endif
+
+if example_wsi_backends.length() == 0
+  error('build_examples requires at least one of SDL3, SDL2 or GLFW')
 endif
 
 # One entry per (D3D API, example) pair: the source file and the matching D3D
